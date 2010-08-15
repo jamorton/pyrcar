@@ -1,19 +1,17 @@
 
-import pygame
-from pygame.locals import *
 import stackless, stacklesssocket, time
 stacklesssocket.install()
 import socket
+from shared import *
 
-DEBUG = False
+schedule = stackless.schedule
 
-def log(*args):
-#	if DEBUG:
-	print "".join(args)
-		
+def tasklet(func, *args, **kwargs):
+	t = stackless.tasklet(func)
+	t(*args, **kwargs)
+	return t
+
 __sleepingTasklets = []
-
-gettime = pygame.time.get_ticks
 
 def sleep(mstowait):
     channel = stackless.channel()
@@ -37,28 +35,10 @@ def __manageSleepingTasklets():
 
 stackless.tasklet(__manageSleepingTasklets)()
 
-class FPSMeter(object):
-	SAMPLE_SIZE = 20
-	def __init__(self):
-		self.start_time = gettime()
-		self.ticks = 0
-		self.fps = 0
-		
-	def tick(self):
-		self.ticks += 1
-		if (self.ticks == self.SAMPLE_SIZE):
-			t = gettime()
-			self.fps = self.ticks / ((t - self.start_time) / 1000.0)
-			self.ticks = 0
-			self.start_time = t
-			
-		return self.fps
-
 class Actor(object):
 	def __init__(self):
 		self.channel = stackless.channel()
-		self._task_recv = stackless.tasklet(self.recv)
-		self._task_recv()
+		self._task_recv = tasklet(self.recv)
 		
 	def send(self, target, cmd, *args):
 		target.send((self.channel, cmd, args))
@@ -81,8 +61,7 @@ class Module(Actor):
 		self.app = app
 		stackless.tasklet(self.init)(*args)
 		if self.uses_loop:
-			self._task_run = stackless.tasklet(self.run)
-			self._task_run()
+			self._task_run = tasklet(self.run)
 		
 	def broadcast(self, cmd, *args):
 		self.send(self.app, "BROADCAST", cmd, *args)

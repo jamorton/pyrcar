@@ -1,10 +1,9 @@
 
-from base import *
+from control_base import *
 import sys, struct
 import cStringIO as StringIO
 from PIL import Image
 
-DEBUG = True
 AXIS_LEFT_X, AXIS_LEFT_Y, AXIS_RIGHT_X, AXIS_RIGHT_Y = range(4)
 
 class Camera(Module):

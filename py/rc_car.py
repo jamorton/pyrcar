@@ -1,39 +1,13 @@
 
-import socket
-import serial
+import socket, serial, threading
 import cStringIO as StringIO
 from VideoCapture import Device
-import time
-import threading
-import socket
 from struct import pack
-import pygame
-pygame.init()
-
-gettime = pygame.time.get_ticks
+from shared import *
 
 COM_PORT = "COM3"
 CMD_SET_TURN, CMD_SET_DRIVE, CMD_SET_CAM = range(3)
 CAM_SIZE = (640, 480)
-
-
-class FPSMeter(object):
-	SAMPLE_SIZE = 25
-		
-	def start(self):
-		self.start_time = gettime()
-		self.ticks = 0
-		self.fps = 0
-		
-	def tick(self):
-		self.ticks += 1
-		if (self.ticks == self.SAMPLE_SIZE):
-			t = gettime()
-			self.fps = self.ticks / ((t - self.start_time) / 1000.0)
-			self.start_time = t
-			self.ticks = 0
-			
-		return self.fps
 
 def log(*args):
 	print " ".join(args)
