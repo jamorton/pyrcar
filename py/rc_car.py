@@ -63,7 +63,7 @@ class Client(object):
 		except:
 			self.serial = None
 		self.data = ""
-		self.cam = CameraManager(CAM_SIZE, fps)
+		self.cam = CameraManager(CAMERA_SIZE, fps)
 		self.cam.start()
 		self.run()
 		
