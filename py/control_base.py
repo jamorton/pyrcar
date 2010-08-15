@@ -4,6 +4,7 @@ stacklesssocket.install()
 import socket
 from shared import *
 
+channel  = stackless.channel
 schedule = stackless.schedule
 
 def tasklet(func, *args, **kwargs):
@@ -14,12 +15,12 @@ def tasklet(func, *args, **kwargs):
 __sleepingTasklets = []
 
 def sleep(mstowait):
-    channel = stackless.channel()
+    chan = channel()
     endTime = gettime() + mstowait
-    __sleepingTasklets.append((endTime, channel))
+    __sleepingTasklets.append((endTime, chan))
     __sleepingTasklets.sort()
     # Block until we get sent an awakening notification.
-    channel.receive()
+    chan.receive()
 
 def __manageSleepingTasklets():
     while 1:
@@ -30,8 +31,7 @@ def __manageSleepingTasklets():
                 del __sleepingTasklets[0]
                 # We have to send something, but it doesn't matter what as it is not used.
                 channel.send(None)
-        stackless.schedule()
-        pygame.time.wait(5)
+        schedule()
 
 stackless.tasklet(__manageSleepingTasklets)()
 
@@ -49,7 +49,7 @@ class Actor(object):
 	def recv(self):
 		while 1:
 			sender, cmd, args = self.channel.receive()
-			stackless.tasklet(self.msg)(sender, cmd, args)
+			tasklet(self.msg, sender, cmd, args)
 		
 	def msg(self, sender, cmd, args):
 		pass
@@ -59,7 +59,7 @@ class Module(Actor):
 	def __init__(self, app, *args):
 		Actor.__init__(self)
 		self.app = app
-		stackless.tasklet(self.init)(*args)
+		tasklet(self.init, *args)
 		if self.uses_loop:
 			self._task_run = tasklet(self.run)
 		
@@ -76,7 +76,7 @@ class Module(Actor):
 		
 	def run(self):
 		while 1:
-			stackless.schedule()
+			schedule()
 			self.loop()
 			
 	def loop(self):

@@ -5,61 +5,52 @@ from VideoCapture import Device
 from struct import pack
 from shared import *
 
-COM_PORT = "COM3"
 CMD_SET_TURN, CMD_SET_DRIVE, CMD_SET_CAM = range(3)
-CAM_SIZE = (640, 480)
-
-def log(*args):
-	print " ".join(args)
 
 class CameraManager(threading.Thread):
 	def __init__(self, size, fps):
 		threading.Thread.__init__(self)
 		self.size = size
 		self.camera = Device(0)
-		#self.camera.setResolution(size[0], size[1])
 		self.should_stop = threading.Event()
-		self.freq = 1.0 / float(fps)
+		self.freq = int(1.0 / float(fps) * 1000.0)
 		self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-		self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-		self.sock.bind(("", 23457))
-		self.sock.listen(5)
 		self.client = None
-		self.camera.displayCapturePinProperties()
+		#self.camera.displayCapturePinProperties()
 		
 	def stop(self):
 		self.should_stop.set()
 		
 	def run(self):
+		self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+		self.sock.bind(("", 23457))
+		self.sock.listen(5)
+		
 		while 1:
 			client, addr = self.sock.accept()
 			log("Camera connection")
 			self.client = client
 			break
+			
 		fpsm = FPSMeter()
-		fpsm.start()
-		ld = ""
 		while 1:
 			if self.should_stop.isSet():
 				return
 			print fpsm.tick()
-			pygame.time.wait(40)
+			pygame.time.wait(self.freq)
 			data = self.get_image()
-			ld = data
-			dl = len(data)
-			self.client.send(pack("!I%ds" % dl, dl, data))
+			data_len = len(data)
+			self.client.send(pack("!I%ds" % data_len, data_len, data))
 			
 		
 	def get_image(self):
 		io = StringIO.StringIO()
-		image = self.camera.getImage().resize((192, 144))
+		image = self.camera.getImage().resize(self.size)
 		image.save(io, "JPEG", quality = 50, optimize = True)
 		data = io.getvalue()
 		io.close()
 		return data
 		
-		
-
 class Client(object):
 	def __init__(self, host, port, fps):
 		log("Starting up")
@@ -68,7 +59,7 @@ class Client(object):
 		self.sock.bind(("", port))
 		self.addr = (host, port)
 		try:
-			self.serial = serial.Serial(COM_PORT, 9600)
+			self.serial = serial.Serial("COM3", 9600)
 		except:
 			self.serial = None
 		self.data = ""
@@ -107,19 +98,30 @@ class Client(object):
 				
 	def byte(self, data):
 		if self.serial is not None:
-			self.serial.write(chr(data))
+			if isinstance(data, str):
+				self.serial.write(data)
+			elif isinstance(data, int):
+				self.serial.write(chr(data))
+			else:
+				try:
+					for i in iter(data):
+						self.byte(i)
+				except TypeError:
+					pass
 					
 	def ondata(self, msg):
 		if len(msg) < 2:
 			return
-		if msg[0] == "x":
+		cmd = msg[0]
+		val = msg[1]
+		if   cmd == "x":
 			self.byte(CMD_SET_TURN)
-			self.byte(ord(msg[1]))
-		elif msg[0] == "y":
+			self.byte(val)
+		elif cmd == "y":
 			self.byte(CMD_SET_DRIVE)
-			self.byte(ord(msg[1]))
-		elif msg[0] == "z":
+			self.byte(val)
+		elif cmd == "z":
 			self.byte(CMD_SET_CAM)
-			self.byte(ord(msg[1]))
+			self.byte(val)
 			
 Client("192.168.0.12", 23456, 20)

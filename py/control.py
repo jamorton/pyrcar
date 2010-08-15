@@ -25,8 +25,7 @@ class Camera(Module):
 		if cmd == "NEW_CONNECTION":
 			self.my_init()
 			self._task_run.kill()
-			self._task_run = stackless.tasklet(self.my_loop)
-			self._task_run()
+			self._task_run = tasklet(self.my_loop)
 		
 	def my_loop(self):
 		fpsm = FPSMeter()
@@ -281,14 +280,14 @@ class Application(Actor):
 			
 	def exit(self):
 		self.broadcast("EXITING")
-		stackless.schedule()
+		schedule()
 		sys.exit()
 	
 	def start(self, modules):
 		self.start_modules(modules)
 		
 		while 1:
-			stackless.schedule()
+			schedule()
 			#pygame.time.wait(1)
 			for event in pygame.event.get():
 				type = event.type
@@ -310,7 +309,7 @@ if __name__ == "__main__":
 		(Display, "RC Car Test"),
 		(Connection, 23456),
 		(Pinger, 2),
-		(Camera, (192, 144), ("192.168.0.14", 23457)),
+		(Camera, CAMERA_SIZE, ("192.168.0.14", 23457)),
 		Controller
 	]
 	

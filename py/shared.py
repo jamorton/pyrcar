@@ -6,6 +6,8 @@ pygame.init()
 
 gettime = pygame.time.get_ticks
 
+CAMERA_SIZE = (
+
 def log(*args):
 	print "".join(args)
 
