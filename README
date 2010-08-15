@@ -1,0 +1,6 @@
+======
+PYRCAR
+======
+
+pyrcar allows for remote (through a 3g card or similar device) or wifi control of an rc car, written in stackless python.
+It has three separate parts, the controlling computer code, the rc car laptop code, and the arduino code.
