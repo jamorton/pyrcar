@@ -115,7 +115,7 @@ class Connection(Module):
 class Controller(Module):
 	uses_loop = True
 	def init(self):
-		self.track = {"x": -1, "y": -1, "c": 90}
+		self.track = {"x": -1, "y": -1, "c": 90, "brake": 0}
 		self.buttons = {}
 		for x in range(11):
 			self.buttons[x] = 0
@@ -177,6 +177,16 @@ class Controller(Module):
 			if c < 0:
 				c = 0.0
 				
+		elif self.buttons[11]:
+			dir = 0
+			if   self.track["y"] < 90: dir = -1
+			elif self.track["y"] > 90: dir = 1
+			deg = -dir * 90 + 90
+			# send the full opposite direction to active speed control brake. Send
+			# 0 to allow for movement again.
+			self.broadcast("DRIVE_VALUE", deg)
+			self.broadcast("DRIVE_VALUE", 0)
+				
 		if int(c) != int(self.track["c"]):
 			self.broadcast("CAM_VALUE", c)
 			
@@ -185,7 +195,8 @@ class Controller(Module):
 				
 	def on_axis(self, axis, value):
 		value = -value
-		if axis == AXIS_LEFT_Y:
+		# if brake is down then ignore drive values
+		if axis == AXIS_LEFT_Y and not self.buttons[11]:
 			deg = int(self.scale(value, -1, 1, 70, 110))
 			if deg != self.track["y"]:
 				self.track["y"] = deg

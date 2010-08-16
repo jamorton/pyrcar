@@ -2,7 +2,6 @@
 
 def test_joy_buttons():
 	import pygame
-	from pygame.locals import *
 	pygame.init()
 
 	joy = pygame.joystick.Joystick(0)
@@ -11,7 +10,7 @@ def test_joy_buttons():
 	while 1:
 		pygame.time.wait(50)
 		for evt in pygame.event.get():
-			if evt.type == JOYBUTTONDOWN:
+			if evt.type == pygame.JOYBUTTONDOWN:
 				print evt.dict["button"]
 				
 				
