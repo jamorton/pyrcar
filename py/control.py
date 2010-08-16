@@ -117,11 +117,12 @@ class Controller(Module):
 	def init(self):
 		self.track = {"x": -1, "y": -1, "c": 90, "brake": 0}
 		self.buttons = {}
-		for x in range(11):
+		for x in range(13):
 			self.buttons[x] = 0
 		if pygame.joystick.get_count() == 0:
 			log("No joysticks connected. Disabling Control module.")
 			self.stop()
+			return
 		self.joy = pygame.joystick.Joystick(0)
 		self.joy.init()
 		self.last_time = getseconds()
@@ -226,11 +227,11 @@ class Display(Module):
 		if cmd == "MODULE_LIST":
 			self.setup_labels(args[0])
 		elif cmd == "DRIVE_VALUE":
-			self.update_label("driveval", "Drive: %d deg" % str(args[0]))
+			self.update_label("driveval", "Drive: %d deg" % args[0])
 		elif cmd == "TURN_VALUE":
-			self.update_label("turnval", "Turn: %d deg" % str(args[0]))
+			self.update_label("turnval", "Turn: %d deg" % args[0])
 		elif cmd == "CAM_VALUE":
-			self.update_label("camval", "Cam: %d deg" % str(args[0]))
+			self.update_label("camval", "Cam: %d deg" % args[0])
 		elif cmd == "NEW_CONNECTION":
 			self.update_label("client", "Connected: %s (%d)" % (args[0][0], args[0][1]))
 		elif cmd == "CAMERA_IMAGE":	
@@ -238,6 +239,8 @@ class Display(Module):
 			self.update_label("fps", "Cam FPS: %d" % args[1])
 		
 	def setup_labels(self, modules):
+		self.add_label("tasklets", "Tasklets: 1", (20, 410))
+		self.add_label("modules", "Modules: %d" % len(modules), (20, 440))
 		if "controller" in modules:
 			self.add_label("driveval", "Drive: 90 deg", (20, 20))
 			self.add_label("turnval", "Turn: 90 deg", (20, 50))
@@ -258,6 +261,7 @@ class Display(Module):
 		sleep(30)
 		pygame.display.flip()
 		self.screen.blit(self.bg, (0, 0))
+		self.update_label("tasklets", "Tasklets: %d" % stackless.runcount)
 		for v in self.labels.values():
 			v.blit(self.screen)
 		if self.cmimg is not None:
