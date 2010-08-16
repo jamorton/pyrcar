@@ -16,22 +16,20 @@ __sleepingTasklets = []
 
 def sleep(mstowait):
     chan = channel()
-    endTime = gettime() + mstowait
+    endTime = getms() + mstowait
     __sleepingTasklets.append((endTime, chan))
     __sleepingTasklets.sort()
-    # Block until we get sent an awakening notification.
     chan.receive()
 
 def __manageSleepingTasklets():
     while 1:
         if len(__sleepingTasklets):
             endTime = __sleepingTasklets[0][0]
-            if endTime <= gettime():
+            if endTime <= getms():
                 channel = __sleepingTasklets[0][1]
                 del __sleepingTasklets[0]
-                # We have to send something, but it doesn't matter what as it is not used.
                 channel.send(None)
-        schedule()
+        schedule(); schedule()
 
 stackless.tasklet(__manageSleepingTasklets)()
 

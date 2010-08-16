@@ -37,7 +37,7 @@ class CameraManager(threading.Thread):
 			if self.should_stop.isSet():
 				return
 			print fpsm.tick()
-			pygame.time.wait(self.freq)
+			wait(self.freq)
 			data = self.get_image()
 			data_len = len(data)
 			self.client.send(pack("!I%ds" % data_len, data_len, data))
@@ -46,7 +46,7 @@ class CameraManager(threading.Thread):
 	def get_image(self):
 		io = StringIO.StringIO()
 		image = self.camera.getImage().resize(self.size)
-		image.save(io, "JPEG", quality = 50, optimize = True)
+		image.save(io, "JPEG", quality = 75, optimize = True)
 		data = io.getvalue()
 		io.close()
 		return data
@@ -101,7 +101,10 @@ class Client(object):
 			if isinstance(data, str):
 				self.serial.write(data)
 			elif isinstance(data, int):
-				self.serial.write(chr(data))
+				try:
+					self.serial.write(chr(data))
+				except ValueError:
+					self.serial.write(str(data))
 			else:
 				try:
 					for i in iter(data):
@@ -124,4 +127,4 @@ class Client(object):
 			self.byte(CMD_SET_CAM)
 			self.byte(val)
 			
-Client("192.168.0.12", 23456, 20)
+Client("192.168.0.12", 23456, 30)

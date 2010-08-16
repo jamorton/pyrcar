@@ -42,7 +42,7 @@ class Camera(Module):
 				else:
 					if len(self.buffer) >= self.img_len:
 						self.recving = 0
-						img_data = struct.unpack("!%ds" % self.img_len, self.buffer[:self.img_len])[0]
+						#img_data = struct.unpack("!%ds" % self.img_len, self.buffer[:self.img_len])[0]
 						self.buffer = self.buffer[self.img_len:]
 						disp = pygame.image.load(StringIO.StringIO(img_data))
 						self.broadcast("CAMERA_IMAGE", disp, fpsm.tick())
@@ -54,10 +54,10 @@ class Pinger(Module):
 	uses_loop = True
 	def init(self, wait):
 		self.wait = wait
-		self.last_ping = time.time()
+		self.last_ping = getseconds()
 	
 	def loop(self):
-		thetime = time.time()
+		thetime = getseconds()
 		if thetime - self.last_ping > self.wait:
 			self.last_ping = thetime
 			self.broadcast("PING")
@@ -75,7 +75,7 @@ class Connection(Module):
 		
 	def net_send(self, data):
 		if self.client is not None:
-			print "Sending:", data
+			#log("Sending:", data)
 			self.sock.sendto(data + ".", self.client)
 			
 	def msg(self, sender, cmd, args):
@@ -93,9 +93,8 @@ class Connection(Module):
 			self.net_send("z%s" % chr(args[0]))
 		
 	def loop(self):
-		data, addr = self.sock.recvfrom(1024)
+		data, self.client = self.sock.recvfrom(1024)
 		self.buffer += data
-		self.client = addr
 		while self.buffer:
 			idx = self.buffer.find(self.delimiter)
 			if idx != -1:
@@ -108,7 +107,7 @@ class Connection(Module):
 				
 	def on_recv(self, msg):
 		if msg.lower() == "hello":
-			print self.client
+			log("New Connection: ", self.client)
 			self.broadcast("NEW_CONNECTION", self.client)
 		else:
 			self.send(self.app, "NET_RECV", msg)
@@ -125,6 +124,7 @@ class Controller(Module):
 			self.stop()
 		self.joy = pygame.joystick.Joystick(0)
 		self.joy.init()
+		self.last_time = getseconds()
 		
 	def msg(self, sender, cmd, args):
 		if cmd == "EVENT":
@@ -147,11 +147,10 @@ class Controller(Module):
 			elif type == JOYHATMOTION:
 				hat   = event.dict["hat"]
 				value = event.dict["value"]
-				
-				
+								
 	def scale(self, value, min1, max1, min2, max2):
 		return (value - min1) * (float(max2 - min2) / float(max1 - min1)) + min2
-				
+		
 	def on_button_up(self, button):
 		if button == 10:
 			self.send(self.app, "QUIT")
@@ -163,16 +162,26 @@ class Controller(Module):
 		pass
 		
 	def loop(self):
-		sleep(7)
+		# Degrees per second camera rotates
+		CAM_DPS = 70.0
+		time = getseconds()
+		dt   = time - self.last_time
+		c = self.track["c"]
+		
 		if self.buttons[5]:
-			if self.track["c"] < 180:
-				self.track["c"] += 2
-				self.broadcast("CAM_VALUE", self.track["c"])
+			c += CAM_DPS * dt
+			if c > 180:
+				c = 180.0
 		elif self.buttons[6]:
-			if self.track["c"] > 0:
-				self.track["c"] -= 2
-				self.broadcast("CAM_VALUE", self.track["c"])
-
+			c -= CAM_DPS * dt
+			if c < 0:
+				c = 0.0
+				
+		if int(c) != int(self.track["c"]):
+			self.broadcast("CAM_VALUE", c)
+			
+		self.track["c"] = c
+		self.last_time = time
 				
 	def on_axis(self, axis, value):
 		value = -value
@@ -202,16 +211,15 @@ class Display(Module):
 		self.cmimg = None
 		self.fpsm = FPSMeter()
 
-		
 	def msg(self, sender, cmd, args):
 		if cmd == "MODULE_LIST":
 			self.setup_labels(args[0])
 		elif cmd == "DRIVE_VALUE":
-			self.update_label("driveval", "Drive: " + str(args[0]) + " deg")
+			self.update_label("driveval", "Drive: %d deg" % str(args[0]))
 		elif cmd == "TURN_VALUE":
-			self.update_label("turnval", "Turn: " + str(args[0]) + " deg")
+			self.update_label("turnval", "Turn: %d deg" % str(args[0]))
 		elif cmd == "CAM_VALUE":
-			self.update_label("camval", "Cam: " + str(args[0]) + " deg")
+			self.update_label("camval", "Cam: %d deg" % str(args[0]))
 		elif cmd == "NEW_CONNECTION":
 			self.update_label("client", "Connected: %s (%d)" % (args[0][0], args[0][1]))
 		elif cmd == "CAMERA_IMAGE":	
@@ -261,9 +269,6 @@ class Application(Actor):
 			else:
 				self.modules[m.__name__.lower()] = m(self.channel)
 		self.broadcast("MODULE_LIST", self.modules.keys())
-		
-	def get_module(self, name):
-		return self.modules.get(name, None)
 				
 	def broadcast(self, cmd, *args):
 		for m in self.modules.values():
@@ -288,7 +293,7 @@ class Application(Actor):
 		
 		while 1:
 			schedule()
-			#pygame.time.wait(1)
+			wait(1)
 			for event in pygame.event.get():
 				type = event.type
 				if type == QUIT:
@@ -299,8 +304,7 @@ class Application(Actor):
 		
 def start(modules):
 	pygame.init()
-	main_task = stackless.tasklet(Application().start)
-	main_task(modules)
+	main_task = tasklet(Application().start, modules)
 	stackless.run()
 
 if __name__ == "__main__":
@@ -308,7 +312,7 @@ if __name__ == "__main__":
 	modules = [
 		(Display, "RC Car Test"),
 		(Connection, 23456),
-		(Pinger, 2),
+		#(Pinger, 2),
 		(Camera, CAMERA_SIZE, ("192.168.0.14", 23457)),
 		Controller
 	]
